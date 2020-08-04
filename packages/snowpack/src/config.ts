@@ -96,6 +96,7 @@ const configSchema = {
       type: 'object',
       properties: {
         dest: {type: 'string'},
+        /** mPrinC-TODO: document in js/sys/snowpack/docs/docs/05-configuration.md */
         externalPackage: {type: 'array', items: {type: 'string'}},
         treeshake: {type: 'boolean'},
         installTypes: {type: 'boolean'},
@@ -579,6 +580,7 @@ function validateConfigAgainstV1(rawConfig: any, cliFlags: any) {
   }
   if (Array.isArray(rawConfig.webDependencies)) {
     handleDeprecatedConfigError(
+      /** mPrinC-TODO: maybe add to the documentation as well `install (previouselly webDependencies)` so if someone searches docs can find `webDependencies` even if obsolated */
       '[Snowpack v1 -> v2] The `webDependencies` array is now `install`.',
     );
   }
@@ -714,6 +716,7 @@ export function validatePluginLoadResult(
 export function createConfiguration(
   config: Partial<SnowpackConfig>,
 ): [ValidatorResult['errors'], undefined] | [null, SnowpackConfig] {
+  // validate JSON-Schema
   const {errors: validationErrors} = validate(config, configSchema, {
     propertyName: CONFIG_NAME,
     allowUnknownAttributes: false,

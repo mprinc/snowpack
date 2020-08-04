@@ -12,11 +12,23 @@ export interface BuildFileOptions {
   isHmrEnabled: boolean;
 }
 
+/**
+ * Gets inputs from output
+ * 
+ * Iterates through all plugins for each plugin that could produce (output) the extension of the `fileLoc`
+ * and adds all its input extensions that it can read (and convert to the output extension)
+ * mPrinC-TODO: how the `plugin.resolve.output` and `plugin.resolve.input` are provided
+ * @param fileLoc path (with extension)
+ * @param plugins 
+ * @returns  
+ */
 export function getInputsFromOutput(fileLoc: string, plugins: SnowpackPlugin[]) {
   const {baseExt} = getExt(fileLoc);
   const potentialInputs = new Set([fileLoc]);
   for (const plugin of plugins) {
+    console.log("[build-pipeline::getInputsFromOutput] plugin '%s'", plugin.name);
     if (plugin.resolve && plugin.resolve.output.includes(baseExt)) {
+      console.log("[build-pipeline::getInputsFromOutput] plugin '%s' resolves the '%s' extension", plugin.name, baseExt);
       plugin.resolve.input.forEach((inp) => potentialInputs.add(fileLoc.replace(baseExt, inp)));
     }
   }
@@ -143,8 +155,14 @@ export async function buildFile(
 ): Promise<SnowpackBuildMap> {
   // Pass 1: Find the first plugin to load this file, and return the result
   const loadResult = await runPipelineLoadStep(srcPath, buildFileOptions);
-  // Pass 2: Pass that result through every plugin transfomr() method.
+  if(srcPath == '/Users/mprinc/data/development/LitTerra-zontik/litterra-playground/annotation/annotata/snowpack/src/lib/index.ts'){
+    // console.log("[build-pipeline::buildFile] loadResult: ", loadResult);
+  }
+  // Pass 2: Pass that result through every plugin transform() method.
   const transformResult = await runPipelineTransformStep(loadResult, srcPath, buildFileOptions);
+  if(srcPath == '/Users/mprinc/data/development/LitTerra-zontik/litterra-playground/annotation/annotata/snowpack/src/lib/index.ts'){
+    // console.log("[build-pipeline::buildFile] transformResult: ", transformResult);
+  }
   // Return the final build result.
   return transformResult;
 }

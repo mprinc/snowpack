@@ -23,9 +23,13 @@ export const GLOBAL_CACHE_DIR = globalCacheDir('snowpack');
 export const RESOURCE_CACHE = path.join(GLOBAL_CACHE_DIR, 'pkg-cache-1.4');
 export const BUILD_CACHE = path.join(GLOBAL_CACHE_DIR, 'build-cache-2.6');
 
+/** snowpack's cache dir resolved through the "standardized": https://www.npmjs.com/package/find-cache-dir */
 export const PROJECT_CACHE_DIR = projectCacheDir({name: 'snowpack'});
+/** dev dependencies folder inside the cache folder */
 export const DEV_DEPENDENCIES_DIR = path.join(PROJECT_CACHE_DIR, 'dev');
 const LOCKFILE_HASH_FILE = '.hash';
+export const IMPORT_MAP_FILE = 'import-map.json';
+export const LOCK_FILE = 'snowpack.lock.json';
 
 export const HAS_CDN_HASH_REGEX = /\-[a-zA-Z0-9]{16,}/;
 // NOTE(fks): Must match empty script elements to work properly.
@@ -41,9 +45,14 @@ export function getEncodingType(ext: string): 'utf-8' | 'binary' {
   return UTF8_FORMATS.includes(ext) ? 'utf-8' : 'binary';
 }
 
+/**
+ * Reads lockfile - sorted import map into the lock file 
+ * @param cwd cwd
+ * @returns ImportMap if all good or null on error
+ */
 export async function readLockfile(cwd: string): Promise<ImportMap | null> {
   try {
-    var lockfileContents = fs.readFileSync(path.join(cwd, 'snowpack.lock.json'), {
+    var lockfileContents = fs.readFileSync(path.join(cwd, LOCK_FILE), {
       encoding: 'utf-8',
     });
   } catch (err) {
@@ -54,6 +63,12 @@ export async function readLockfile(cwd: string): Promise<ImportMap | null> {
   return JSON.parse(lockfileContents);
 }
 
+/**
+ * writes lock file - sorted import map into the lock file 
+ * @param loc loc file location
+ * @param importMap import map to be saved
+ * @returns lockfile 
+ */
 export async function writeLockfile(loc: string, importMap: ImportMap): Promise<void> {
   const sortedImportMap: ImportMap = {imports: {}};
   for (const key of Object.keys(importMap.imports).sort()) {
@@ -202,26 +217,34 @@ export async function openInBrowser(
   }
 }
 
-export async function checkLockfileHash(dir: string) {
+/** Checks if there is any change in the dependencies (based on ['package-lock.json', 'yarn.lock']) of your project
+ * @param dir path to the folder where the file with hash is stored
+ * @returns true if there is no any dependency for your project or
+ * if it the dependency file hasn't changed from the last dependencies install
+ */
+export async function checkLockfileHash(dir: string):Promise<boolean> {
   const lockfileLoc = await findUp(['package-lock.json', 'yarn.lock']);
   if (!lockfileLoc) {
     return true;
   }
-  const hashLoc = path.join(dir, LOCKFILE_HASH_FILE);
+  const hashLocPath = path.join(dir, LOCKFILE_HASH_FILE);
   const newLockHash = etag(await fs.promises.readFile(lockfileLoc, 'utf-8'));
-  const oldLockHash = await fs.promises.readFile(hashLoc, 'utf-8').catch(() => '');
+  const oldLockHash = await fs.promises.readFile(hashLocPath, 'utf-8').catch(() => '');
   return newLockHash === oldLockHash;
 }
 
+/** Updates the hash file with the new hash of the dependency file (if it exists) 
+ * @param dir path to the folder where the file with hash is stored
+*/
 export async function updateLockfileHash(dir: string) {
   const lockfileLoc = await findUp(['package-lock.json', 'yarn.lock']);
   if (!lockfileLoc) {
     return;
   }
-  const hashLoc = path.join(dir, LOCKFILE_HASH_FILE);
+  const hashLocPath = path.join(dir, LOCKFILE_HASH_FILE);
   const newLockHash = etag(await fs.promises.readFile(lockfileLoc));
-  await mkdirp(path.dirname(hashLoc));
-  await fs.promises.writeFile(hashLoc, newLockHash);
+  await mkdirp(path.dirname(hashLocPath));
+  await fs.promises.writeFile(hashLocPath, newLockHash);
 }
 
 export async function clearCache() {

@@ -73,6 +73,7 @@ import {
   replaceExt,
   resolveDependencyManifest,
   updateLockfileHash,
+  IMPORT_MAP_FILE,
 } from '../util';
 import {command as installCommand} from './install';
 import {getPort, paint} from './paint';
@@ -138,6 +139,7 @@ const sendFile = (
     const bodyStream = stream.Readable.from([body]);
     headers['Content-Encoding'] = 'gzip';
     res.writeHead(200, headers);
+    /** mPrinC-TODO: cache zipped file */
     stream.pipeline(bodyStream, zlib.createGzip(), res, onError);
     return;
   }
@@ -178,7 +180,14 @@ function getUrlFromFile(
 
 let currentlyRunningCommand: any = null;
 
+/** The entry point to the dev command 
+ * @param commandOptions command parameters
+*/
 export async function command(commandOptions: CommandOptions) {
+  // console.log("[dev:command commandOptions: ", commandOptions);
+  // necessary as snowpack overwrites the log
+  // if(new Date()){process.exit();}
+
   const {cwd, config} = commandOptions;
   const {port: defaultPort, hostname, open, hmr: isHmr} = config.devOptions;
 
@@ -193,13 +202,22 @@ export async function command(commandOptions: CommandOptions) {
   const inMemoryBuildCache = new Map<string, SnowpackBuildMap>();
   const filesBeingDeleted = new Set<string>();
   const filesBeingBuilt = new Map<string, Promise<SnowpackBuildMap>>();
+  /** an EventEmitter message bus used to communicate between the build components and the paint component  */
   const messageBus = new EventEmitter();
+  /** 
+   * contains mounts from the config file but with the properly resolved fromDisk values 
+   * 
+   * 0: dirDisk - mounting point (dirDisk) that server sees
+   * 
+   * 1: dirUrl - mounting reference (dirUrl) that browser sees
+   * */
   const mountedDirectories: [string, string][] = Object.entries(config.mount).map(
     ([fromDisk, toUrl]) => {
       return [path.resolve(cwd, fromDisk), toUrl];
     },
   );
 
+  // hooking node.js console methods to pass to `paint` instead 
   console.log = (...args) => {
     messageBus.emit('CONSOLE', {level: 'log', args});
   };
@@ -213,6 +231,7 @@ export async function command(commandOptions: CommandOptions) {
   // Start painting immediately, so we can surface errors & warnings to the
   // user, and they can watch the server starting up. Search for ”SERVER_START”
   // for the actual start event below.
+  // mPrinC TODO: It seems this is problem of overwriting errors reported
   paint(
     messageBus,
     config.plugins.map((p) => p.name),
@@ -253,7 +272,8 @@ export async function command(commandOptions: CommandOptions) {
   );
 
   // Set the proper install options, in case an install is needed.
-  const dependencyImportMapLoc = path.join(DEV_DEPENDENCIES_DIR, 'import-map.json');
+  /** path to the ImportMap serialized file */
+  const dependencyImportMapLoc = path.join(DEV_DEPENDENCIES_DIR, IMPORT_MAP_FILE);
   const installCommandOptions = merge(commandOptions, {
     config: {
       installOptions: {
@@ -271,6 +291,7 @@ export async function command(commandOptions: CommandOptions) {
     await updateLockfileHash(DEV_DEPENDENCIES_DIR);
   }
 
+  /** initially loaded from the the loc file, but later might be updated within the `reinstallDependencies()`  */
   let dependencyImportMap: ImportMap = {imports: {}};
   try {
     dependencyImportMap = JSON.parse(
@@ -313,6 +334,7 @@ export async function command(commandOptions: CommandOptions) {
     }
   });
 
+  /** Support for certificates  */
   const readCredentials = async (cwd: string) => {
     const [cert, key] = await Promise.all([
       fs.readFile(path.join(cwd, 'snowpack.crt')),
@@ -356,7 +378,9 @@ export async function command(commandOptions: CommandOptions) {
     }
   }
 
+  /** plugins related */
   for (const runPlugin of config.plugins) {
+    // mPrinC-TODO: unclear where the `.run()` method is comming from?!
     if (runPlugin.run) {
       messageBus.emit('WORKER_START', {id: runPlugin.name});
       runPlugin
@@ -377,10 +401,12 @@ export async function command(commandOptions: CommandOptions) {
     }
   }
 
+  /** responds to any server request */
   async function requestHandler(req: http.IncomingMessage, res: http.ServerResponse) {
     const reqUrl = req.url!;
     const reqUrlHmrParam = reqUrl.includes('?mtime=') && reqUrl.split('?')[1];
     let reqPath = decodeURI(url.parse(reqUrl).pathname!);
+    console.log("[dev::requestHandler] req.url: '%s', reqPath: '%s'", req.url, reqPath);
     const originalReqPath = reqPath;
     let isProxyModule = false;
     if (reqPath.endsWith('.proxy.js')) {
@@ -420,6 +446,7 @@ export async function command(commandOptions: CommandOptions) {
     }
 
     const attemptedFileLoads: string[] = [];
+    /** checks for the file existence and is it file, and does additional caching */
     function attemptLoadFile(requestedFile): Promise<null | string> {
       if (attemptedFileLoads.includes(requestedFile)) {
         return Promise.resolve(null);
@@ -431,27 +458,40 @@ export async function command(commandOptions: CommandOptions) {
         .catch(() => null /* ignore */);
     }
 
+    /** the extension of asked file */
     let requestedFileExt = path.parse(reqPath).ext.toLowerCase();
     let responseFileExt = requestedFileExt;
+    /** is the (new) route requested */
     let isRoute = !requestedFileExt || requestedFileExt === '.html';
 
     // Now that we've set isRoute properly, give `requestedFileExt` a fallback
     requestedFileExt = requestedFileExt || '.html';
 
+    /**
+     * Gets file from url
+     * tries all meaningful paths; webmodules and all `mountedDirectories` paths (first matched wins)
+    //  * uses `attemptLoadFile()` to check for file existence
+     * @param reqPath 
+     * @returns file from url 
+     */
     async function getFileFromUrl(reqPath: string): Promise<string | null> {
+      // check if it is in webModules
       if (reqPath.startsWith(config.buildOptions.webModulesUrl)) {
         const fileLoc = await attemptLoadFile(
           reqPath.replace(config.buildOptions.webModulesUrl, DEV_DEPENDENCIES_DIR),
         );
         if (fileLoc) {
+          console.log("[dev::getFileFromUrl] web dependency matched")
           return fileLoc;
         }
       }
+      // check against all mountedDirectories
       for (const [dirDisk, dirUrl] of mountedDirectories) {
         let requestedFile: string;
         if (dirUrl === '/') {
           requestedFile = path.join(dirDisk, reqPath);
         } else if (reqPath.startsWith(dirUrl)) {
+          // replace the mounting reference with the mounting point
           requestedFile = path.join(dirDisk, reqPath.replace(dirUrl, './'));
         } else {
           continue;
@@ -467,13 +507,23 @@ export async function command(commandOptions: CommandOptions) {
             fileLoc = await attemptLoadFile(fallbackFile);
           }
           if (fileLoc) {
+            /** mPrinC-TODO: A bit unhealthy to propagate outside of function */
             responseFileExt = '.html';
+            console.log("[dev::getFileFromUrl] isRoute resolved for mount dirUrl: ", dirUrl);
             return fileLoc;
           }
         } else {
-          for (const potentialSourceFile of getInputsFromOutput(requestedFile, config.plugins)) {
+          /** reverse engineering the original file (extension)
+          * get all `potentialSourceFiles` as expansion of `fileLoc` into all extensions that plugins are possible 
+          * to have as an input producing the final `fileLoc` extension
+          * */
+          const potentialSourceFiles:string[] = getInputsFromOutput(requestedFile, config.plugins);
+          console.log("[dev::getFileFromUrl] potentialSourceFiles: ", potentialSourceFiles);
+
+          for (const potentialSourceFile of potentialSourceFiles) {
             const fileLoc = await attemptLoadFile(potentialSourceFile);
             if (fileLoc) {
+              console.log("[dev::getFileFromUrl] getInputsFromOutput() resolved for mount dirUrl: ", dirUrl);
               return fileLoc;
             }
           }
@@ -483,11 +533,13 @@ export async function command(commandOptions: CommandOptions) {
     }
 
     const fileLoc = await getFileFromUrl(reqPath);
+    console.log("[dev::requestHandler] req.url: '%s' -> fileLoc: '%s'", req.url, fileLoc);
 
     if (isRoute) {
       messageBus.emit('NEW_SESSION');
     }
 
+    /** we couldn't map the requested file to real local file */
     if (!fileLoc) {
       const prefix = colors.red('  ✘ ');
       console.error(`[404] ${reqUrl}\n${attemptedFileLoads.map((loc) => prefix + loc).join('\n')}`);
@@ -500,11 +552,13 @@ export async function command(commandOptions: CommandOptions) {
      * because one source file can result in multiple built files (Example: .svelte -> .js & .css).
      */
     async function buildFile(fileLoc: string): Promise<SnowpackBuildMap> {
+      console.log("[dev::buildFile] req.url: '%s' -> fileLoc: '%s'", req.url, fileLoc);
       const existingBuilderPromise = filesBeingBuilt.get(fileLoc);
       if (existingBuilderPromise) {
         return existingBuilderPromise;
       }
       const fileBuilderPromise = (async () => {
+        /** mPrinC-TODO: I think this serializes the whole build process?! */
         const builtFileOutput = await _buildFile(fileLoc, {
           plugins: config.plugins,
           messageBus,

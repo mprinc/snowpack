@@ -123,7 +123,7 @@ export function paint(
         process.stdout.write('\n');
         process.stdout.write(
           colors.dim(
-            startTimeMs < 1000 ? `  Server started in ${startTimeMs}ms.` : `  Server started.`, // Not to hide slow startup times, but likely there were extraneous factors (prompts, etc.) where the speed isn’t accurate
+            startTimeMs < 1000 ? `  Сервер је стартован in ${startTimeMs}ms.` : `  Server started.`, // Not to hide slow startup times, but likely there were extraneous factors (prompts, etc.) where the speed isn’t accurate
           ),
         );
         if (allFileBuilds.size > 0) {

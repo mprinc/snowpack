@@ -41,6 +41,8 @@ import {
   writeLockfile,
   isPackageAliasEntry,
   findMatchingAliasEntry,
+  IMPORT_MAP_FILE,
+  LOCK_FILE,
 } from '../util.js';
 
 type InstallResultCode = 'SUCCESS' | 'ASSET' | 'FAIL';
@@ -78,6 +80,7 @@ const cwd = process.cwd();
 const banner = colors.bold(`snowpack`) + ` installing... `;
 let spinner;
 let spinnerHasError = false;
+/** the list of results (2nd element) for each `targetName`/`installSpecifier` (1st element) */
 let installResults: [string, InstallResultCode][] = [];
 let dependencyStats: DependencyStatsOutput | null = null;
 
@@ -111,6 +114,7 @@ function formatInstallResults(): string {
     .join(', ');
 }
 
+/** checks if the `importUrl` is under the `packageName` */
 function isImportOfPackage(importUrl: string, packageName: string) {
   return packageName === importUrl || importUrl.startsWith(packageName + '/');
 }
@@ -160,13 +164,18 @@ function getRollupReplaceKeys(env: EnvVarReplacements): Record<string, string> {
  * field instead of the CJS "main" field.
  */
 function resolveWebDependency(dep: string): DependencyLoc {
+  console.log("[resolveWebDependency] dep: ", dep);
   // if dep points directly to a file within a package, return that reference.
   // No other lookup required.
+  console.log("[resolveWebDependency] dep: ", dep);
+  // CASE 1)
   if (path.extname(dep) && !validatePackageName(dep).validForNewPackages) {
     const isJSFile = ['.js', '.mjs', '.cjs'].includes(path.extname(dep));
+    const loc = require.resolve(dep, {paths: [cwd]});
+    console.log("[resolveWebDependency] CASE 1) loc: ", loc);
     return {
       type: isJSFile ? 'JS' : 'ASSET',
-      loc: require.resolve(dep, {paths: [cwd]}),
+      loc: loc,
     };
   }
   // If dep is a path within a package (but without an extension), we first need
@@ -174,6 +183,8 @@ function resolveWebDependency(dep: string): DependencyLoc {
   const [packageName, packageEntrypoint] = parsePackageImportSpecifier(dep);
   if (packageEntrypoint) {
     const [packageManifestLoc, packageManifest] = resolveDependencyManifest(packageName, cwd);
+    console.log("[resolveWebDependency] packageManifestLoc: ", packageManifestLoc);
+    // CASE 2) package manifest has `exports`
     if (packageManifestLoc && packageManifest && packageManifest.exports) {
       const exportMapEntry = packageManifest.exports['./' + packageEntrypoint];
       const exportMapValue =
@@ -187,9 +198,11 @@ function resolveWebDependency(dep: string): DependencyLoc {
           `Package "${packageName}" exists but package.json "exports" does not include entry for "./${packageEntrypoint}".`,
         );
       }
+      let loc = path.join(packageManifestLoc, '..', exportMapValue);
+      console.log("[resolveWebDependency] CASE 2) loc: ", loc);
       return {
         type: 'JS',
-        loc: path.join(packageManifestLoc, '..', exportMapValue),
+        loc: loc,
       };
     }
   }
@@ -198,16 +211,20 @@ function resolveWebDependency(dep: string): DependencyLoc {
   // "package-name" & "package-name/some/path" where "package-name/some/path/package.json"
   // exists at that lower path, that must be used to resolve. In that case, export
   // maps should not be supported.
+  // CASE 3) there is `package.json` UNDER the `dep` path
   const [depManifestLoc, depManifest] = resolveDependencyManifest(dep, cwd);
   if (!depManifest) {
+    // CASE 4) try to load file directly
     try {
       const maybeLoc = require.resolve(dep, {paths: [cwd]});
+      console.log("[resolveWebDependency] CASE 4) loc: ", maybeLoc);
       return {
         type: 'JS',
         loc: maybeLoc,
       };
     } catch (err) {
       // Oh well, was worth a try
+      console.log("[resolveWebDependency] CASE 4) Oh well, was worth a try: ", dep);
     }
   }
   if (!depManifestLoc || !depManifest) {
@@ -216,14 +233,18 @@ function resolveWebDependency(dep: string): DependencyLoc {
       depManifestLoc ? colors.italic(depManifestLoc) : '',
     );
   }
+  // CASE 5) React workaround packages
   if (
     depManifest.name &&
     (depManifest.name.startsWith('@reactesm') || depManifest.name.startsWith('@pika/react'))
   ) {
+    console.log("[resolveWebDependency] CASE 5) React workaround packages depManifest.name: ", depManifest.name);
     throw new Error(
       `React workaround packages no longer needed! Revert back to the official React & React-DOM packages.`,
     );
   }
+  // CASE 3) there is `package.json` UNDER the `dep` path
+  // TODO: shouldn't `browser` precede `module`, that is how webpack works, and expected for web-focused "bundler"
   let foundEntrypoint: string =
     depManifest['browser:module'] ||
     depManifest.module ||
@@ -240,7 +261,7 @@ function resolveWebDependency(dep: string): DependencyLoc {
       foundEntrypoint['./'] ||
       foundEntrypoint['.'];
   }
-  // If browser object is set but no relevant entrypoint is found, fall back to "main".
+  // If browser object is not set or no relevant entrypoint is found, fall back to "main".
   if (!foundEntrypoint) {
     foundEntrypoint = depManifest.main;
   }
@@ -253,9 +274,11 @@ function resolveWebDependency(dep: string): DependencyLoc {
     throw new Error(`"${dep}" has unexpected entrypoint: ${JSON.stringify(foundEntrypoint)}.`);
   }
   try {
+    const loc = require.resolve(path.join(depManifestLoc || '', '..', foundEntrypoint));
+    console.log("[resolveWebDependency] CASE 3) loc: ", loc);
     return {
       type: 'JS',
-      loc: require.resolve(path.join(depManifestLoc || '', '..', foundEntrypoint)),
+      loc: loc,
     };
   } catch (err) {
     // Type only packages! Some packages are purely for TypeScript (ex: csstypes).
@@ -281,17 +304,29 @@ const FAILED_INSTALL_RETURN: InstallResult = {
   success: false,
   importMap: null,
 };
+
+/** Installs all package dependencies
+ * @param installTargets dependencies that should be installed
+ */
 export async function install(
   installTargets: InstallTarget[],
   {lockfile, logError, logUpdate}: InstallOptions,
   config: SnowpackConfig,
 ): Promise<InstallResult> {
+  console.log("[install] installTargets:  );", installTargets);
+  console.log("[install] lockfile:  );", lockfile);
+  // console.log("[install] config:  );", config);
   const {
     webDependencies,
     alias: installAlias,
     installOptions: {
+      /** TypeScript types */
       installTypes,
       dest: destLoc,
+      /** mPrinC-TODO: undocumented in
+       * https://www.snowpack.dev/#configuration
+       * https://www.snowpack.dev/#config-files
+      */
       externalPackage: externalPackages,
       sourceMap,
       env,
@@ -301,26 +336,41 @@ export async function install(
   } = config;
 
   const nodeModulesInstalled = findUp.sync('node_modules', {cwd, type: 'directory'});
+  // process.versions.pnp: https://yarnpkg.com/advanced/pnpapi#processversionspnp
   if (!webDependencies && !(process.versions as any).pnp && !nodeModulesInstalled) {
     logError('no "node_modules" directory exists. Did you run "npm install" first?');
     return FAILED_INSTALL_RETURN;
   }
   const allInstallSpecifiers = new Set(
     installTargets
+      // remove the dependencies that are under the `externalPackages` packages and
       .filter(
         (dep) =>
           !externalPackages.some((packageName) => isImportOfPackage(dep.specifier, packageName)),
       )
       .map((dep) => dep.specifier)
+      // resolves aliases
       .map((specifier) => {
         const aliasEntry = findMatchingAliasEntry(config, specifier);
-        return aliasEntry && aliasEntry.type === 'package' ? aliasEntry.to : specifier;
+        return (aliasEntry && aliasEntry.type === 'package') ? aliasEntry.to : specifier;
       })
       .sort(),
   );
+  console.log("[install:install] allInstallSpecifiers: ", allInstallSpecifiers);
+
+  /** the list of entry points resolved (from the installTargets->allInstallSpecifiers) we should install 
+   * will be fed to rollup for installing
+  */
   const installEntrypoints: {[targetName: string]: string} = {};
+  /** the list of resolved assets, it will be just carbon-copied after the rollup section */
   const assetEntrypoints: {[targetName: string]: string} = {};
+  /** the list of mappings for the dependencies provided
+   * will be saved to the snowpack lock file
+   */
   const importMap: ImportMap = {imports: {}};
+  /** reversed mappings from targetLoc location of the location into the list of install targets that have the same specifier
+   * mPrinC-TODO: a bit strange and not used at the moment?!
+    */
   const installTargetsMap: {[targetLoc: string]: InstallTarget[]} = {};
   const skipFailures = false;
   const autoDetectNamedExports = [
@@ -331,6 +381,7 @@ export async function install(
   for (const installSpecifier of allInstallSpecifiers) {
     const targetName = getWebDependencyName(installSpecifier);
     const proxiedName = sanitizePackageName(targetName); // sometimes we need to sanitize webModule names, as in the case of tippy.js -> tippyjs
+    // all good if already imported
     if (lockfile && lockfile.imports[installSpecifier]) {
       installEntrypoints[targetName] = lockfile.imports[installSpecifier];
       importMap.imports[installSpecifier] = `./${proxiedName}.js`;
@@ -343,6 +394,9 @@ export async function install(
       if (targetType === 'JS') {
         installEntrypoints[targetName] = targetLoc;
         importMap.imports[installSpecifier] = `./${proxiedName}.js`;
+        console.log("[install:install:targetType === 'JS'] targetLoc: '%s', targetName: '%s', importMap.imports[installSpecifier]: '%s'", 
+          targetLoc, targetName, importMap.imports[installSpecifier]);
+        // expand to all aliases if applies
         Object.entries(installAlias)
           .filter(([, value]) => value === installSpecifier)
           .forEach(([key]) => {
@@ -359,6 +413,7 @@ export async function install(
       }
       logUpdate(formatInstallResults());
     } catch (err) {
+      console.error("[install:install:resolveWebDependency] err: ", err);
       installResults.push([installSpecifier, 'FAIL']);
       logUpdate(formatInstallResults());
       if (skipFailures) {
@@ -373,24 +428,41 @@ export async function install(
       return FAILED_INSTALL_RETURN;
     }
   }
+  // nothing to install?! :(
   if (Object.keys(installEntrypoints).length === 0 && Object.keys(assetEntrypoints).length === 0) {
-    logError(`No ESM dependencies found!`);
-    console.log(
-      colors.dim(
-        `  At least one dependency must have an ESM "module" entrypoint. You can find modern, web-ready packages at ${colors.underline(
-          'https://www.pika.dev',
-        )}`,
-      ),
-    );
-    return FAILED_INSTALL_RETURN;
+    // mPrinC-TODO: this eliminates this silly scenario when no dependencise but those matching `config.installOptions.externalPackage` parameter
+    return {success: true, importMap};
+    // logError(`Neither ESM dependencies nor ASSETS found!`);
+    // console.log(
+    //   colors.dim(
+    //     `  At least one dependency must have an ESM "module" entrypoint. You can find modern, web-ready packages at ${colors.underline(
+    //       'https://www.pika.dev',
+    //     )}`,
+    //   ),
+    // );
+    // return FAILED_INSTALL_RETURN;
   }
 
   await initESModuleLexer;
   let isCircularImportFound = false;
+  // rollup input options
+  // https://rollupjs.org/guide/en/#inputoptions-object
+  // https://rollupjs.org/guide/en/#big-list-of-options
   const inputOptions: InputOptions = {
+    /** The bundle's entry point(s) 
+     * https://rollupjs.org/guide/en/#input
+    */
     input: installEntrypoints,
+    /** lookup method for external modules
+     * https://rollupjs.org/guide/en/#external
+     */
     external: (id) => externalPackages.some((packageName) => isImportOfPackage(id, packageName)),
+    /** 
+     * treat external modules as if they have side-effects
+     * https://rollupjs.org/guide/en/#treeshake */
     treeshake: {moduleSideEffects: 'no-external'},
+    // mPrinC-TODO: should we provide `preservesymlinks` for the list of packages
+    // https://rollupjs.org/guide/en/#preservesymlinks
     plugins: [
       rollupPluginReplace(getRollupReplaceKeys(env)),
       !!webDependencies &&
@@ -398,6 +470,7 @@ export async function install(
           installTypes,
           log: (url) => logUpdate(colors.dim(url)),
         }),
+        // handle aliases
       rollupPluginAlias({
         entries: Object.entries(installAlias)
           .filter(([, val]) => isPackageAliasEntry(val))
@@ -408,6 +481,8 @@ export async function install(
       }),
       rollupPluginCatchFetch(),
       rollupPluginNodeResolve({
+        // https://www.npmjs.com/package/@rollup/plugin-node-resolve
+        // mPrinC- TODO: Again `module` is preferred over `browser`
         mainFields: ['browser:module', 'module', 'browser', 'main'].filter(isTruthy),
         extensions: ['.mjs', '.cjs', '.js', '.json'], // Default: [ '.mjs', '.js', '.json', '.node' ]
         // whether to prefer built-in modules (e.g. `fs`, `path`) or local ones with the same names
@@ -415,19 +490,27 @@ export async function install(
         dedupe: userDefinedRollup.dedupe,
       }),
       rollupPluginJson({
+        // https://www.npmjs.com/package/@rollup/plugin-json
         preferConst: true,
+        // mPrinC-TODO: why not `\t` as smaller and easier to read and search for
         indent: '  ',
         compact: false,
         namedExports: true,
       }),
       rollupPluginCss(),
       rollupPluginCommonjs({
+        // https://www.npmjs.com/package/@rollup/plugin-commonjs
         extensions: ['.js', '.cjs'],
         // Workaround: CJS -> ESM isn't supported yet by the plugin, so we needed
         // to add our own custom workaround here. Requires a fork of
         // rollupPluginCommonjs that supports the "externalEsm" option.
         externalEsm: process.env.EXTERNAL_ESM_PACKAGES || [],
       } as RollupCommonJSOptions),
+      /** 
+       * mPrinC-TODO: I think it is to handle all packages that snowpack is aware and has them already in cache
+       * so it can provide them on demand as a single pre-packed file, rather than letting rollup to dwell into 
+       * the original non-packed ones, not sure
+       * */ 
       rollupPluginWrapInstallTargets(!!isTreeshake, autoDetectNamedExports, installTargets),
       rollupPluginDependencyStats((info) => (dependencyStats = info)),
       ...userDefinedRollup.plugins, // load user-defined plugins last
@@ -459,20 +542,31 @@ export async function install(
       warn(warning);
     },
   };
+  // https://rollupjs.org/guide/en/#big-list-of-options
+  // https://rollupjs.org/guide/en/#outputoptions-object
   const outputOptions: OutputOptions = {
     dir: destLoc,
+    // https://rollupjs.org/guide/en/#outputformat
     format: 'esm',
+    // https://rollupjs.org/guide/en/#outputsourcemap
     sourcemap: sourceMap,
+    // https://rollupjs.org/guide/en/#outputexports
     exports: 'named',
+    // the location and format of files where will be stored
+    // the dependencies that are required from multiple modules 
     chunkFileNames: 'common/[name]-[hash].js',
   };
   if (Object.keys(installEntrypoints).length > 0) {
     try {
+      console.log("[install] trying rollup for inputOptions.input: ", inputOptions.input);
+      // run rollup https://rollupjs.org/guide/en/#rolluprollup
       const packageBundle = await rollup(inputOptions);
       logUpdate(formatInstallResults());
+      // writes all generated files
       await packageBundle.write(outputOptions);
     } catch (_err) {
       const err: RollupError = _err;
+      console.log("[install] RollupError: ", err);
       const errFilePath = err.loc?.file || err.id;
       if (!errFilePath) {
         throw err;
@@ -491,7 +585,8 @@ export async function install(
     }
   }
 
-  await writeLockfile(path.join(destLoc, 'import-map.json'), importMap);
+  await writeLockfile(path.join(destLoc, IMPORT_MAP_FILE), importMap);
+  // carbon copy discovered assets 
   for (const [assetName, assetLoc] of Object.entries(assetEntrypoints)) {
     const assetDest = `${destLoc}/${sanitizePackageName(assetName)}`;
     mkdirp.sync(path.dirname(assetDest));
@@ -501,26 +596,52 @@ export async function install(
   return {success: true, importMap};
 }
 
+/**
+ * Gets install targets
+ * It takes `install` param from snowpack config file, 
+ * `webDependencies` from `package.json`, initially provided files `scannedFiles` and
+ * all application entry points (provided in the snowpack config file as the `mount` dictionary)
+ * and scans for the packages that are imported across all discovered files
+ * 
+ * The core process is described in the @see{@link{scanImports()}} of the `../scan-imports.js`
+ * @param config snowpack config
+ * @param [scannedFiles] 
+ * @returns all the targets that should be installed (real package dependencies, excluding local imports)
+ * + it doesn't return internal imports, like: `./lib/dataset-entry.service`, `./select/select.js'`
+ * + it does return package imports like`@colabo-flow/i-dataset`, etc)
+ */
 export async function getInstallTargets(
   config: SnowpackConfig,
+  // mPrinC-NOTE: not provided with local `command` call
+  // set of files that should be included for parsing
   scannedFiles?: SnowpackSourceFile[],
-) {
+):Promise<InstallTarget[]> {
   const {knownEntrypoints, webDependencies} = config;
   const installTargets: InstallTarget[] = [];
   if (knownEntrypoints) {
+    console.log("[install] knownEntrypoints: ", knownEntrypoints);
+    // mPrinC-TODO: explore scanDepList
     installTargets.push(...scanDepList(knownEntrypoints, cwd));
   }
   if (webDependencies) {
+    console.log("[install] webDependencies: ", webDependencies);
     installTargets.push(...scanDepList(Object.keys(webDependencies), cwd));
   }
   if (scannedFiles) {
     installTargets.push(...(await scanImportsFromFiles(scannedFiles, config)));
   } else {
+    //  it returns package imports like `@colabo-flow/i-dataset`, etc
+    // but it doesn't return internal imports, like: `./lib/dataset-entry.service`, `./select/select.js'`
     installTargets.push(...(await scanImports(cwd, config)));
   }
+  console.log("[install] installTargets: ", installTargets);
   return installTargets;
 }
 
+/**
+ * The entry point for the install command
+ * @param commandOptions command options
+ */
 export async function command(commandOptions: CommandOptions) {
   const {cwd, config} = commandOptions;
   const installTargets = await getInstallTargets(config);
@@ -530,12 +651,13 @@ export async function command(commandOptions: CommandOptions) {
   }
   const finalResult = await run({...commandOptions, installTargets});
   if (finalResult.newLockfile) {
-    await writeLockfile(path.join(cwd, 'snowpack.lock.json'), finalResult.newLockfile);
+    await writeLockfile(path.join(cwd, LOCK_FILE), finalResult.newLockfile);
   }
   if (finalResult.stats) {
     console.log(printStats(finalResult.stats));
   }
   if (!finalResult.success || finalResult.hasError) {
+    console.error("Problem with installing dependencies, quitting.");
     process.exit(1);
   }
 }
@@ -552,6 +674,10 @@ interface InstallRunResult {
   stats: DependencyStatsOutput | null;
 }
 
+/** Runs all dependency installs
+ * first webDependencies `resolveTargetsFromRemoteCDN()`
+ * then package imports `install()`
+ */
 export async function run({
   config,
   lockfile,
@@ -577,6 +703,8 @@ export async function run({
     };
   }
 
+  // install CDN dependencies
+  // not taken under the install time
   let newLockfile: ImportMap | null = null;
   if (webDependencies && Object.keys(webDependencies).length > 0) {
     newLockfile = await resolveTargetsFromRemoteCDN(lockfile, config).catch((err) => {

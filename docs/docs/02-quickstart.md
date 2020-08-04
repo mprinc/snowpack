@@ -10,7 +10,7 @@ npm install --save-dev snowpack
 yarn add --dev snowpack
 ```
 
-Snowpack can also be installed globally via `npm install -g snowpack`. But, we recommend installing locally in every project via `--save-dev`/`--dev`. You can run the Snowpack CLI locally via package.json "scripts", npm's `npx snowpack`, or via `yarn snowpack`.
+Snowpack can also be installed globally via `npm install -g snowpack`. But, <span class='important'>we recommend installing locally</span> in every project via `--save-dev`/`--dev`. You can run the Snowpack CLI locally via package.json "scripts", npm's `npx snowpack`, or via `yarn snowpack`.
 
 ### Create Snowpack App (CSA)
 
@@ -37,14 +37,14 @@ npx create-snowpack-app new-dir --template [SELECT FROM BELOW] [--use-yarn]
 <!--
 ### Tutorial: Starting from Scratch
 
-While CSA is a great all-in-one starter dev environment, you may prefer to learn exactly how it works under the hood. In that case, we have this tutorial that walks you through how you can build your own Create React App -like dev environment with Snowpack and only a few lines of configuration.
+While CSA is a great all-in-one starter dev environment, you may prefer to learn <span class='important'>exactly how it works under the hood</span>. In that case, we have this tutorial that walks you through how you can build your own Create React App -like dev environment with Snowpack and only a few lines of configuration.
 
 **Coming Soon!**
 -->
 
 ### Migrating an Existing App
 
-Migrating an existing app to Snowpack is meant to be painless, since Snowpack supports most features and build tools that you're already using today (Babel, PostCSS, etc). If this is your first time using Snowpack you should start with a Create Snowpack App (CSA) template, copy over your "src" & "public" files from your old app, and then run `snowpack dev`, troubleshooting any remaining issues.
+Migrating an existing app to Snowpack is meant to be <span class='important'>painless, since Snowpack supports most features and build tools that you're already using today</span> (Babel, PostCSS, etc). If this is your first time using Snowpack you should start with a Create Snowpack App (CSA) template, copy over your "src" & "public" files from your old app, and then <span class='comment' data-comment='the problem is that it overwrites errors, example, add import with missing package, not installed, and the error will be overwritten'>run `snowpack dev`, troubleshooting any remaining issues</span>.
 
 CSA is a good starting point for an existing application because it has a few common tools (like Babel) built in by default to replicate the full feature set of a traditional bundled app. CSA is also meant to be a drop-in replacement for Create React App, so any existing Create React App project should run via CSA with zero changes needed.
 

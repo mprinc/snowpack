@@ -101,9 +101,15 @@ export interface SnowpackConfig {
   install: string[];
   extends?: string;
   exclude: string[];
+  /** comes from the `install` config parameter plus all plugins' knownEntrypoints */
   knownEntrypoints: string[];
+  /** comes from the project's `pkgManifest.webDependencies`
+   * mPrinC-TODO: is it only recognized with snowpack?
+   */
   webDependencies?: {[packageName: string]: string};
   proxy: Proxy[];
+  /** keys are mounting point (dirDisk) that server sees
+   * values are mounting reference (dirUrl) that browser sees */
   mount: Record<string, string>;
   alias: Record<string, string>;
   scripts: Record<string, string>;
@@ -132,6 +138,9 @@ export interface SnowpackConfig {
   };
   buildOptions: {
     baseUrl: string;
+    /** path to folder where all dependencies are built and installed
+     * by default set to '/web_modules'
+     */
     webModulesUrl: string;
     clean: boolean;
     metaDir: string;
@@ -150,7 +159,14 @@ export interface CLIFlags extends Omit<Partial<SnowpackConfig['installOptions']>
   secure?: boolean;
 }
 
+/** List of imports indexed by the package name */
 export interface ImportMap {
+  /** mPrinC-TODO: it looks like just a mapping mechanism between the original requested import package name and the one that snowpack internally resolved (and probably used for saving the package in the **`web_modules`** cache, etc):
+   * packageName -> getWebDependencyName() -> sanitizePackageName() + '.js'
+   * or for assets just: packageName -> getWebDependencyName() -> sanitizePackageName()
+   * for example: `@colabo-flow/i-dataset` -> `./@colabo-flow/i-dataset.js`
+   * TODO: wherefrom the prefix: `./`
+   */
   imports: {[packageName: string]: string};
 }
 
@@ -170,8 +186,11 @@ export interface CommandOptions {
 export type InstallTarget = {
   specifier: string;
   all: boolean;
+  /** has default import */
   default: boolean;
+  /** is it a namespace import */
   namespace: boolean;
+  /** the list of named import entities in the import */
   named: string[];
 };
 

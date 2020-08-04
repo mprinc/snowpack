@@ -65,6 +65,7 @@ export async function cli(args: string[]) {
     process.exit(1);
   }
 
+  /** command invoked by user */
   const cmd = cliFlags['_'][2];
 
   // Set this early -- before config loading -- so that plugins see it.

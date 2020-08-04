@@ -120,6 +120,12 @@ async function resolveDependency(
   return resolveDependency(installSpecifier, packageSemver, lockfile, false);
 }
 
+/**
+ * Resolves targets from remote CDN
+ * @param lockfile import map
+ * @param config snowpack config
+ * @returns  new import map
+ */
 export async function resolveTargetsFromRemoteCDN(
   lockfile: ImportMap | null,
   config: SnowpackConfig,

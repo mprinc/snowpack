@@ -53,6 +53,7 @@ async function installOptimizedDependencies(
   });
   // 3. Print stats immediate after install output.
   if (installResult.stats) {
+    console.log("[installOptimizedDependencies] installResult.stats: ", installResult.stats);
     console.log(printStats(installResult.stats));
   }
   return installResult;

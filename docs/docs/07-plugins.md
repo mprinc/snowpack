@@ -6,7 +6,7 @@ Snowpack plugins can be added to:
 - Customize your build with new language/framework support (Svelte, Vue)
 - Customize your build with new build tools (Babel, PostCSS)
 - Run CLI commands during build and development (TypeScript, ESLint)
-- Create custom transformations, specific to your exact application.
+- Create <span class='definition'>custom transformations</span>, specific to your exact application.
 
 👉 **[Check out our advanced guide](/plugins) and learn how to create your own plugin.**
 

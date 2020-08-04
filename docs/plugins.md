@@ -18,17 +18,17 @@ Looking for help using Snowpack in your project?
 
 ## Plugin Overview
 
-A **Snowpack Plugin** is an object interface that lets you customize Snowpack's behavior. Snowpack provides different hooks for your plugin to connect to. For example, you can add a plugin to handle Svelte files, optimize CSS, convert SVGs to React components, run TypeScript during development, and much more.
+A **Snowpack Plugin** is <span class='important'>an object interface</span> that lets you customize Snowpack's behavior. Snowpack provides different <span class='definition'>hooks</span> for your plugin to connect to. For example, you can add a plugin to handle Svelte files, optimize CSS, convert SVGs to React components, run TypeScript during development, and much more.
 
-Snowpack's plugin interface is inspired by Rollup. If you've ever written a Rollup plugin before, then hopefully these concepts and terms feel familiar.
+<span class='important'>Snowpack's plugin interface is inspired by Rollup</span>. If you've ever written a Rollup plugin before, then hopefully these concepts and terms feel familiar.
 
 ### Build Plugins
 
-Snowpack uses an internal **Build Pipeline** to build files in your application for development and production. Every source file passes through the build pipeline, which means that Snowpack can build more than just JavaScript. Images, CSS, SVGs and more can all be built by Snowpack.
+Snowpack uses an <span class='definition'>internal **Build Pipeline**</span> to build files in your application for development and production. <span class='important'>Every source file passes through the build pipeline</span>, which means that Snowpack can build more than just JavaScript. Images, CSS, SVGs and more can all be built by Snowpack.
 
-Snowpack runs each file through the build pipeline in two separate steps:
+Snowpack runs each file through the build pipeline in <span class='important'>two separate steps</span>:
 
-1. **Load:** Snowpack finds the first plugin that claims to `resolve` the given file. It then calls that plugin's `load()` method to load the file into your application. This is where compiled languages (TypeScript, Sass, JSX, etc.) are loaded and compiled to something that can run on the web (JS, CSS, etc).
+1. **Load:** Snowpack finds <span class='important'>the first plugin</span> that claims to `resolve` the given file. It then calls that plugin's `load()` method to load the file into your application. This is where compiled languages (TypeScript, Sass, JSX, etc.) are loaded and compiled to something that can run on the web (JS, CSS, etc).
 2. **Transform:** Once loaded, every file passes through the build pipeline again to run through matching `transform()` methods. Plugins can transform a file to modify or augment its contents before finishing the file build.
 
 ### Dev Tooling Plugins
@@ -186,12 +186,12 @@ This is an (obviously) simplified version of the `@snowpack/plugin-webpack` plug
 
 ### Tips / Gotchas
 
-- Remember: A source file will always be loaded by the first `load()` plugin to claim it, but the build result will be run through every `transform` function.
+- Remember: A source file will always be <span class='important'>loaded by the first `load()` plugin to claim it</span>, but the build result will be <span class='important'>run through every `transform` function</span>.
 - Snowpack will always keep the original file name (`App`) and only ever change the extension in the build. 
 - Extensions in Snowpack always have a leading `.` character (e.g. `.js`, `.ts`). This is to match Node’s `path.extname()` behavior, as well as make sure we’re not matching extension substrings (e.g. if we matched `js` at the end of a file, we also don’t want to match `.mjs` files by accident; we want to be explicit there).
 - The `resolve.input` and `resolve.output` file extension arrays are vital to how Snowpack understands your build pipeline, and are always required for `load()` to run correctly.
-- If `load()` or `transform()` don't return anything, the file isn’t transformed. 
-- If you want to build a plugin that only runs some code on initialization (such as `@snowpack/plugin-dotenv`), put your side-effect code inside the function that returns your plugin. But be sure to still return a plugin object. A simple `{ name }` object will do.
+- If `load()` or `transform()` <span class='important'>don't return anything</span>, the file isn’t transformed. 
+- If you want to build a plugin that <span class='important'>only runs some code on initialization</span> (such as `@snowpack/plugin-dotenv`), put your side-effect code inside the function that returns your plugin. But be sure to still return a plugin object. A simple `{ name }` object will do.
 
 ## Plugin API
 
