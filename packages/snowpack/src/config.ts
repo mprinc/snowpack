@@ -299,8 +299,8 @@ function loadPlugins(
     // add source maps (*.map) as potential outputs
     plugin.resolve?.output.forEach((ext) => {
       const mappedExt = ext + '.map';
-      if (!ext.endsWith('.map') && plugin.resolve?.output.includes(mappedExt))
-        plugin.resolve.output.push(mappedExt);
+      if (!ext.endsWith('.map') && !plugin.resolve?.output.includes(mappedExt))
+        plugin.resolve?.output.push(mappedExt);
     });
 
     validatePlugin(plugin);
