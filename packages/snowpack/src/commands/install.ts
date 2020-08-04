@@ -164,15 +164,15 @@ function getRollupReplaceKeys(env: EnvVarReplacements): Record<string, string> {
  * field instead of the CJS "main" field.
  */
 function resolveWebDependency(dep: string): DependencyLoc {
-  console.log("[resolveWebDependency] dep: ", dep);
+  // console.log("[resolveWebDependency] dep: ", dep);
   // if dep points directly to a file within a package, return that reference.
   // No other lookup required.
-  console.log("[resolveWebDependency] dep: ", dep);
+  // console.log("[resolveWebDependency] dep: ", dep);
   // CASE 1)
   if (path.extname(dep) && !validatePackageName(dep).validForNewPackages) {
     const isJSFile = ['.js', '.mjs', '.cjs'].includes(path.extname(dep));
     const loc = require.resolve(dep, {paths: [cwd]});
-    console.log("[resolveWebDependency] CASE 1) loc: ", loc);
+    // console.log("[resolveWebDependency] CASE 1) loc: ", loc);
     return {
       type: isJSFile ? 'JS' : 'ASSET',
       loc: loc,
@@ -183,7 +183,7 @@ function resolveWebDependency(dep: string): DependencyLoc {
   const [packageName, packageEntrypoint] = parsePackageImportSpecifier(dep);
   if (packageEntrypoint) {
     const [packageManifestLoc, packageManifest] = resolveDependencyManifest(packageName, cwd);
-    console.log("[resolveWebDependency] packageManifestLoc: ", packageManifestLoc);
+    // console.log("[resolveWebDependency] packageManifestLoc: ", packageManifestLoc);
     // CASE 2) package manifest has `exports`
     if (packageManifestLoc && packageManifest && packageManifest.exports) {
       const exportMapEntry = packageManifest.exports['./' + packageEntrypoint];
@@ -199,7 +199,7 @@ function resolveWebDependency(dep: string): DependencyLoc {
         );
       }
       let loc = path.join(packageManifestLoc, '..', exportMapValue);
-      console.log("[resolveWebDependency] CASE 2) loc: ", loc);
+      // console.log("[resolveWebDependency] CASE 2) loc: ", loc);
       return {
         type: 'JS',
         loc: loc,
@@ -217,14 +217,14 @@ function resolveWebDependency(dep: string): DependencyLoc {
     // CASE 4) try to load file directly
     try {
       const maybeLoc = require.resolve(dep, {paths: [cwd]});
-      console.log("[resolveWebDependency] CASE 4) loc: ", maybeLoc);
+      // console.log("[resolveWebDependency] CASE 4) loc: ", maybeLoc);
       return {
         type: 'JS',
         loc: maybeLoc,
       };
     } catch (err) {
       // Oh well, was worth a try
-      console.log("[resolveWebDependency] CASE 4) Oh well, was worth a try: ", dep);
+      // console.log("[resolveWebDependency] CASE 4) Oh well, was worth a try: ", dep);
     }
   }
   if (!depManifestLoc || !depManifest) {
@@ -238,7 +238,7 @@ function resolveWebDependency(dep: string): DependencyLoc {
     depManifest.name &&
     (depManifest.name.startsWith('@reactesm') || depManifest.name.startsWith('@pika/react'))
   ) {
-    console.log("[resolveWebDependency] CASE 5) React workaround packages depManifest.name: ", depManifest.name);
+    // console.log("[resolveWebDependency] CASE 5) React workaround packages depManifest.name: ", depManifest.name);
     throw new Error(
       `React workaround packages no longer needed! Revert back to the official React & React-DOM packages.`,
     );
@@ -275,7 +275,7 @@ function resolveWebDependency(dep: string): DependencyLoc {
   }
   try {
     const loc = require.resolve(path.join(depManifestLoc || '', '..', foundEntrypoint));
-    console.log("[resolveWebDependency] CASE 3) loc: ", loc);
+    // console.log("[resolveWebDependency] CASE 3) loc: ", loc);
     return {
       type: 'JS',
       loc: loc,
@@ -313,8 +313,8 @@ export async function install(
   {lockfile, logError, logUpdate}: InstallOptions,
   config: SnowpackConfig,
 ): Promise<InstallResult> {
-  console.log("[install] installTargets:  );", installTargets);
-  console.log("[install] lockfile:  );", lockfile);
+  // console.log("[install] installTargets:  );", installTargets);
+  // console.log("[install] lockfile:  );", lockfile);
   // console.log("[install] config:  );", config);
   const {
     webDependencies,
@@ -356,7 +356,7 @@ export async function install(
       })
       .sort(),
   );
-  console.log("[install:install] allInstallSpecifiers: ", allInstallSpecifiers);
+  // console.log("[install:install] allInstallSpecifiers: ", allInstallSpecifiers);
 
   /** the list of entry points resolved (from the installTargets->allInstallSpecifiers) we should install 
    * will be fed to rollup for installing
@@ -394,8 +394,8 @@ export async function install(
       if (targetType === 'JS') {
         installEntrypoints[targetName] = targetLoc;
         importMap.imports[installSpecifier] = `./${proxiedName}.js`;
-        console.log("[install:install:targetType === 'JS'] targetLoc: '%s', targetName: '%s', importMap.imports[installSpecifier]: '%s'", 
-          targetLoc, targetName, importMap.imports[installSpecifier]);
+        // console.log("[install:targetType === 'JS'] targetLoc: '%s', targetName: '%s', importMap.imports[installSpecifier]: '%s'", 
+          // targetLoc, targetName, importMap.imports[installSpecifier]);
         // expand to all aliases if applies
         Object.entries(installAlias)
           .filter(([, value]) => value === installSpecifier)
@@ -558,7 +558,7 @@ export async function install(
   };
   if (Object.keys(installEntrypoints).length > 0) {
     try {
-      console.log("[install] trying rollup for inputOptions.input: ", inputOptions.input);
+      // console.log("[install] trying rollup for inputOptions.input: ", inputOptions.input);
       // run rollup https://rollupjs.org/guide/en/#rolluprollup
       const packageBundle = await rollup(inputOptions);
       logUpdate(formatInstallResults());
@@ -566,7 +566,7 @@ export async function install(
       await packageBundle.write(outputOptions);
     } catch (_err) {
       const err: RollupError = _err;
-      console.log("[install] RollupError: ", err);
+      // console.log("[install] RollupError: ", err);
       const errFilePath = err.loc?.file || err.id;
       if (!errFilePath) {
         throw err;
@@ -619,12 +619,12 @@ export async function getInstallTargets(
   const {knownEntrypoints, webDependencies} = config;
   const installTargets: InstallTarget[] = [];
   if (knownEntrypoints) {
-    console.log("[install] knownEntrypoints: ", knownEntrypoints);
+    // console.log("[install] knownEntrypoints: ", knownEntrypoints);
     // mPrinC-TODO: explore scanDepList
     installTargets.push(...scanDepList(knownEntrypoints, cwd));
   }
   if (webDependencies) {
-    console.log("[install] webDependencies: ", webDependencies);
+    // console.log("[install] webDependencies: ", webDependencies);
     installTargets.push(...scanDepList(Object.keys(webDependencies), cwd));
   }
   if (scannedFiles) {
@@ -634,7 +634,7 @@ export async function getInstallTargets(
     // but it doesn't return internal imports, like: `./lib/dataset-entry.service`, `./select/select.js'`
     installTargets.push(...(await scanImports(cwd, config)));
   }
-  console.log("[install] installTargets: ", installTargets);
+  // console.log("[install] installTargets: ", installTargets);
   return installTargets;
 }
 

@@ -26,9 +26,9 @@ export function getInputsFromOutput(fileLoc: string, plugins: SnowpackPlugin[]) 
   const {baseExt} = getExt(fileLoc);
   const potentialInputs = new Set([fileLoc]);
   for (const plugin of plugins) {
-    console.log("[build-pipeline::getInputsFromOutput] plugin '%s'", plugin.name);
+    // console.log("[build-pipeline::getInputsFromOutput] plugin '%s'", plugin.name);
     if (plugin.resolve && plugin.resolve.output.includes(baseExt)) {
-      console.log("[build-pipeline::getInputsFromOutput] plugin '%s' resolves the '%s' extension", plugin.name, baseExt);
+      // console.log("[build-pipeline::getInputsFromOutput] plugin '%s' resolves the '%s' extension", plugin.name, baseExt);
       plugin.resolve.input.forEach((inp) => potentialInputs.add(fileLoc.replace(baseExt, inp)));
     }
   }

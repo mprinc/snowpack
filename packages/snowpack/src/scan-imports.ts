@@ -73,13 +73,13 @@ function getWebModuleSpecifierFromCode(code: string, imp: ImportSpecifier):strin
  * returns `@colabo-flow/i-dataset`, etc
  */
 function parseWebModuleSpecifier(specifier: string | null): null | string {
-  console.log("[parseWebModuleSpecifier] specifier: '%s'", specifier);
+  // console.log("[parseWebModuleSpecifier] specifier: '%s'", specifier);
   if (!specifier) {
     return null;
   }
   // If specifier is a "bare module specifier" (ie: package name) just return it directly
   if (BARE_SPECIFIER_REGEX.test(specifier)) {
-    console.log("[parseWebModuleSpecifier] \t -> BARE_SPECIFIER_REGEX, specifier: '%s'", specifier);
+    // console.log("[parseWebModuleSpecifier] \t -> BARE_SPECIFIER_REGEX, specifier: '%s'", specifier);
     return specifier;
   }
   // Clean the specifier, remove any query params that may mess with matching
@@ -87,7 +87,7 @@ function parseWebModuleSpecifier(specifier: string | null): null | string {
   // Otherwise, check that it includes the "web_modules/" directory
   const webModulesIndex = cleanedSpecifier.indexOf(WEB_MODULES_TOKEN);
   if (webModulesIndex === -1) {
-    console.log("[parseWebModuleSpecifier] \t -> no WEB_MODULES_TOKEN in '%s'", cleanedSpecifier);
+    // console.log("[parseWebModuleSpecifier] \t -> no WEB_MODULES_TOKEN in '%s'", cleanedSpecifier);
     return null;
   }
 
@@ -96,11 +96,11 @@ function parseWebModuleSpecifier(specifier: string | null): null | string {
   const resolvedSpecifier = cleanedSpecifier.substring(webModulesIndex + WEB_MODULES_TOKEN_LENGTH);
   const resolvedSpecifierWithoutExtension = stripJsExtension(resolvedSpecifier);
   if (validatePackageName(resolvedSpecifierWithoutExtension).validForNewPackages) {
-    console.log("[parseWebModuleSpecifier] \t -> resolvedSpecifierWithoutExtension: '%s'", specifier, resolvedSpecifierWithoutExtension);
+    // console.log("[parseWebModuleSpecifier] \t -> resolvedSpecifierWithoutExtension: '%s'", specifier, resolvedSpecifierWithoutExtension);
     return resolvedSpecifierWithoutExtension;
   }
   // Otherwise, this is an explicit import to a file within a package.
-  console.log("[parseWebModuleSpecifier] \t -> resolvedSpecifier: '%s'", specifier, resolvedSpecifier);
+  // console.log("[parseWebModuleSpecifier] \t -> resolvedSpecifier: '%s'", specifier, resolvedSpecifier);
   return resolvedSpecifier;
 }
 
@@ -112,7 +112,7 @@ function parseWebModuleSpecifier(specifier: string | null): null | string {
  */
 function parseImportStatement(code: string, imp: ImportSpecifier): null | InstallTarget {
   const webModuleSpecifier = parseWebModuleSpecifier(getWebModuleSpecifierFromCode(code, imp));
-  console.log("[parseImportStatement] webModuleSpecifier: ", webModuleSpecifier);
+  // console.log("[parseImportStatement] webModuleSpecifier: ", webModuleSpecifier);
 
   if (!webModuleSpecifier) {
     return null;
@@ -140,7 +140,7 @@ function parseImportStatement(code: string, imp: ImportSpecifier): null | Instal
       namespace: hasNamespaceImport,
       named: namedImports,
     }
-    console.log("[parseImportStatement] installTarget: ", installTarget);
+    // console.log("[parseImportStatement] installTarget: ", installTarget);
   return installTarget;
 }
 

@@ -406,7 +406,7 @@ export async function command(commandOptions: CommandOptions) {
     const reqUrl = req.url!;
     const reqUrlHmrParam = reqUrl.includes('?mtime=') && reqUrl.split('?')[1];
     let reqPath = decodeURI(url.parse(reqUrl).pathname!);
-    console.log("[dev::requestHandler] req.url: '%s', reqPath: '%s'", req.url, reqPath);
+    // console.log("[dev::requestHandler] req.url: '%s', reqPath: '%s'", req.url, reqPath);
     const originalReqPath = reqPath;
     let isProxyModule = false;
     if (reqPath.endsWith('.proxy.js')) {
@@ -481,7 +481,7 @@ export async function command(commandOptions: CommandOptions) {
           reqPath.replace(config.buildOptions.webModulesUrl, DEV_DEPENDENCIES_DIR),
         );
         if (fileLoc) {
-          console.log("[dev::getFileFromUrl] web dependency matched")
+          // console.log("[dev::getFileFromUrl] web dependency matched")
           return fileLoc;
         }
       }
@@ -509,7 +509,7 @@ export async function command(commandOptions: CommandOptions) {
           if (fileLoc) {
             /** mPrinC-TODO: A bit unhealthy to propagate outside of function */
             responseFileExt = '.html';
-            console.log("[dev::getFileFromUrl] isRoute resolved for mount dirUrl: ", dirUrl);
+            // console.log("[dev::getFileFromUrl] isRoute resolved for mount dirUrl: ", dirUrl);
             return fileLoc;
           }
         } else {
@@ -518,12 +518,12 @@ export async function command(commandOptions: CommandOptions) {
           * to have as an input producing the final `fileLoc` extension
           * */
           const potentialSourceFiles:string[] = getInputsFromOutput(requestedFile, config.plugins);
-          console.log("[dev::getFileFromUrl] potentialSourceFiles: ", potentialSourceFiles);
+          // console.log("[dev::getFileFromUrl] potentialSourceFiles: ", potentialSourceFiles);
 
           for (const potentialSourceFile of potentialSourceFiles) {
             const fileLoc = await attemptLoadFile(potentialSourceFile);
             if (fileLoc) {
-              console.log("[dev::getFileFromUrl] getInputsFromOutput() resolved for mount dirUrl: ", dirUrl);
+              // console.log("[dev::getFileFromUrl] getInputsFromOutput() resolved for mount dirUrl: ", dirUrl);
               return fileLoc;
             }
           }
@@ -533,7 +533,7 @@ export async function command(commandOptions: CommandOptions) {
     }
 
     const fileLoc = await getFileFromUrl(reqPath);
-    console.log("[dev::requestHandler] req.url: '%s' -> fileLoc: '%s'", req.url, fileLoc);
+    // console.log("[dev::requestHandler] req.url: '%s' -> fileLoc: '%s'", req.url, fileLoc);
 
     if (isRoute) {
       messageBus.emit('NEW_SESSION');
@@ -552,7 +552,7 @@ export async function command(commandOptions: CommandOptions) {
      * because one source file can result in multiple built files (Example: .svelte -> .js & .css).
      */
     async function buildFile(fileLoc: string): Promise<SnowpackBuildMap> {
-      console.log("[dev::buildFile] req.url: '%s' -> fileLoc: '%s'", req.url, fileLoc);
+      // console.log("[dev::buildFile] req.url: '%s' -> fileLoc: '%s'", req.url, fileLoc);
       const existingBuilderPromise = filesBeingBuilt.get(fileLoc);
       if (existingBuilderPromise) {
         return existingBuilderPromise;

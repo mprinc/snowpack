@@ -26,18 +26,18 @@ export function esbuildPlugin(_: SnowpackConfig, {input}: {input: string[]}): Sn
       input,
       output: ['.js'],
     },
-    async load({filePath, fileExt}) {
+    async load({filePath}) {
       esbuildService = esbuildService || (await startService());
-      console.log("[@snowpack/plugin-esbuild::load] fileExt: %s, filePath: %s", fileExt, filePath);
+      // console.log("[@snowpack/plugin-esbuild::load] fileExt: %s, filePath: %s", fileExt, filePath);
       let contents = await fs.readFile(filePath, 'utf-8');
 
       // console.log("[@snowpack/plugin-esbuild::load] initial contents: ", contents);
 
-      // fix with the esbuild bug: 
+      // fix with the esbuild "bug": 
       // [TypeScript parsing bug - cascading issue with exporting of nihilated TS interface #314](https://github.com/evanw/esbuild/issues/314)
-      const searchColaboPuzzleRegExp = /export interface ([^\s\{]+)/g;
-      const replaceWithColaboPrefix = 'export class $1{}; export interface _$1';
-      contents = contents.replace(searchColaboPuzzleRegExp, replaceWithColaboPrefix);
+      // const searchColaboPuzzleRegExp = /export interface ([^\s\{]+)/g;
+      // const replaceWithColaboPrefix = 'export class $1{}; export interface _$1';
+      // contents = contents.replace(searchColaboPuzzleRegExp, replaceWithColaboPrefix);
       // console.log("[@snowpack/plugin-esbuild::load] patched: contents: %s", contents);
 
       const isPreact = checkIsPreact(filePath, contents);
