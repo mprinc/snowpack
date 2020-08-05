@@ -180,9 +180,9 @@ function getUrlFromFile(
 
 let currentlyRunningCommand: any = null;
 
-/** The entry point to the dev command 
+/** The entry point to the dev command
  * @param commandOptions command parameters
-*/
+ */
 export async function command(commandOptions: CommandOptions) {
   // console.log("[dev:command commandOptions: ", commandOptions);
   // necessary as snowpack overwrites the log
@@ -204,11 +204,11 @@ export async function command(commandOptions: CommandOptions) {
   const filesBeingBuilt = new Map<string, Promise<SnowpackBuildMap>>();
   /** an EventEmitter message bus used to communicate between the build components and the paint component  */
   const messageBus = new EventEmitter();
-  /** 
-   * contains mounts from the config file but with the properly resolved fromDisk values 
-   * 
+  /**
+   * contains mounts from the config file but with the properly resolved fromDisk values
+   *
    * 0: dirDisk - mounting point (dirDisk) that server sees
-   * 
+   *
    * 1: dirUrl - mounting reference (dirUrl) that browser sees
    * */
   const mountedDirectories: [string, string][] = Object.entries(config.mount).map(
@@ -217,7 +217,7 @@ export async function command(commandOptions: CommandOptions) {
     },
   );
 
-  // hooking node.js console methods to pass to `paint` instead 
+  // hooking node.js console methods to pass to `paint` instead
   console.log = (...args) => {
     messageBus.emit('CONSOLE', {level: 'log', args});
   };
@@ -514,10 +514,10 @@ export async function command(commandOptions: CommandOptions) {
           }
         } else {
           /** reverse engineering the original file (extension)
-          * get all `potentialSourceFiles` as expansion of `fileLoc` into all extensions that plugins are possible 
-          * to have as an input producing the final `fileLoc` extension
-          * */
-          const potentialSourceFiles:string[] = getInputsFromOutput(requestedFile, config.plugins);
+           * get all `potentialSourceFiles` as expansion of `fileLoc` into all extensions that plugins are possible
+           * to have as an input producing the final `fileLoc` extension
+           * */
+          const potentialSourceFiles: string[] = getInputsFromOutput(requestedFile, config.plugins);
           // console.log("[dev::getFileFromUrl] potentialSourceFiles: ", potentialSourceFiles);
 
           for (const potentialSourceFile of potentialSourceFiles) {

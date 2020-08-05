@@ -46,7 +46,7 @@ export function getEncodingType(ext: string): 'utf-8' | 'binary' {
 }
 
 /**
- * Reads lockfile - sorted import map into the lock file 
+ * Reads lockfile - sorted import map into the lock file
  * @param cwd cwd
  * @returns ImportMap if all good or null on error
  */
@@ -64,10 +64,10 @@ export async function readLockfile(cwd: string): Promise<ImportMap | null> {
 }
 
 /**
- * writes lock file - sorted import map into the lock file 
+ * writes lock file - sorted import map into the lock file
  * @param loc loc file location
  * @param importMap import map to be saved
- * @returns lockfile 
+ * @returns lockfile
  */
 export async function writeLockfile(loc: string, importMap: ImportMap): Promise<void> {
   const sortedImportMap: ImportMap = {imports: {}};
@@ -222,7 +222,7 @@ export async function openInBrowser(
  * @returns true if there is no any dependency for your project or
  * if it the dependency file hasn't changed from the last dependencies install
  */
-export async function checkLockfileHash(dir: string):Promise<boolean> {
+export async function checkLockfileHash(dir: string): Promise<boolean> {
   const lockfileLoc = await findUp(['package-lock.json', 'yarn.lock']);
   if (!lockfileLoc) {
     return true;
@@ -233,9 +233,9 @@ export async function checkLockfileHash(dir: string):Promise<boolean> {
   return newLockHash === oldLockHash;
 }
 
-/** Updates the hash file with the new hash of the dependency file (if it exists) 
+/** Updates the hash file with the new hash of the dependency file (if it exists)
  * @param dir path to the folder where the file with hash is stored
-*/
+ */
 export async function updateLockfileHash(dir: string) {
   const lockfileLoc = await findUp(['package-lock.json', 'yarn.lock']);
   if (!lockfileLoc) {

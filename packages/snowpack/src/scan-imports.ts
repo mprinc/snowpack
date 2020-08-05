@@ -50,7 +50,7 @@ function removeSpecifierQueryString(specifier: string) {
  * @param imp reference to the import, with the type described within `es-module-lexer`
  * @returns module specifiers, like `rxjs`
  */
-function getWebModuleSpecifierFromCode(code: string, imp: ImportSpecifier):string | null {
+function getWebModuleSpecifierFromCode(code: string, imp: ImportSpecifier): string | null {
   // import.meta: we can ignore
   if (imp.d === -2) {
     return null;
@@ -108,7 +108,7 @@ function parseWebModuleSpecifier(specifier: string | null): null | string {
  * Parses import statement and returns the targets to be installed
  * @param code code to parse
  * @param imp reference to the import (the `ImportSpecifier` type described within `es-module-lexer`
- * @returns import statement 
+ * @returns import statement
  */
 function parseImportStatement(code: string, imp: ImportSpecifier): null | InstallTarget {
   const webModuleSpecifier = parseWebModuleSpecifier(getWebModuleSpecifierFromCode(code, imp));
@@ -133,14 +133,14 @@ function parseImportStatement(code: string, imp: ImportSpecifier): null | Instal
     .map((name) => name.replace(STRIP_AS, '').trim()) // remove “ as …” and trim
     .filter(isTruthy);
 
-  let installTarget:InstallTarget = {
-      specifier: webModuleSpecifier,
-      all: isDynamicImport || (!hasDefaultImport && !hasNamespaceImport && namedImports.length === 0),
-      default: hasDefaultImport,
-      namespace: hasNamespaceImport,
-      named: namedImports,
-    }
-    // console.log("[parseImportStatement] installTarget: ", installTarget);
+  let installTarget: InstallTarget = {
+    specifier: webModuleSpecifier,
+    all: isDynamicImport || (!hasDefaultImport && !hasNamespaceImport && namedImports.length === 0),
+    default: hasDefaultImport,
+    namespace: hasNamespaceImport,
+    named: namedImports,
+  };
+  // console.log("[parseImportStatement] installTarget: ", installTarget);
   return installTarget;
 }
 
@@ -164,15 +164,15 @@ function cleanCodeForParsing(code: string): string {
 
 /**
  * Parses code for install targets
- * 
+ *
  * Extracts all import statements from the `contents` code and returns for each `InstallTarget`
  * containing dependency specifier and other import meta-data
  * @param {
  *   locOnDisk,
  *   baseExt,
  *   contents,
- * } 
- * @returns code for install targets 
+ * }
+ * @returns code for install targets
  */
 function parseCodeForInstallTargets({
   locOnDisk,
@@ -224,9 +224,9 @@ export function scanDepList(depList: string[], cwd: string): InstallTarget[] {
     .reduce((flat, item) => flat.concat(item), []);
 }
 
-/** 
+/**
  * Scans for all dependencies to import
- * 
+ *
  * 1. starts with all available project application paths (provided in the snowpack config file as the `mount` dictionary), then
  * 2. gets all source code from the recognized files, like
  * + js, jsx, mjs, ts - file content
@@ -248,9 +248,9 @@ export async function scanImports(cwd: string, config: SnowpackConfig): Promise<
     Object.keys(config.mount).map((fromDisk) => {
       const dirDisk = nodePath.resolve(cwd, fromDisk);
       return glob.sync(`**/*`, {
-        /** mPrinC-TODO: better to provide global constant 
-         * as `config.buildOptions.webModulesUrl` might change, as 
-         * it is in the config, although not publically available and part of 
+        /** mPrinC-TODO: better to provide global constant
+         * as `config.buildOptions.webModulesUrl` might change, as
+         * it is in the config, although not publically available and part of
          * the config schema
          * */
         ignore: config.exclude.concat(['**/web_modules/**/*']),

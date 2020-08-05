@@ -326,7 +326,7 @@ export async function install(
       /** mPrinC-TODO: undocumented in
        * https://www.snowpack.dev/#configuration
        * https://www.snowpack.dev/#config-files
-      */
+       */
       externalPackage: externalPackages,
       sourceMap,
       env,
@@ -352,15 +352,15 @@ export async function install(
       // resolves aliases
       .map((specifier) => {
         const aliasEntry = findMatchingAliasEntry(config, specifier);
-        return (aliasEntry && aliasEntry.type === 'package') ? aliasEntry.to : specifier;
+        return aliasEntry && aliasEntry.type === 'package' ? aliasEntry.to : specifier;
       })
       .sort(),
   );
   // console.log("[install:install] allInstallSpecifiers: ", allInstallSpecifiers);
 
-  /** the list of entry points resolved (from the installTargets->allInstallSpecifiers) we should install 
+  /** the list of entry points resolved (from the installTargets->allInstallSpecifiers) we should install
    * will be fed to rollup for installing
-  */
+   */
   const installEntrypoints: {[targetName: string]: string} = {};
   /** the list of resolved assets, it will be just carbon-copied after the rollup section */
   const assetEntrypoints: {[targetName: string]: string} = {};
@@ -370,7 +370,7 @@ export async function install(
   const importMap: ImportMap = {imports: {}};
   /** reversed mappings from targetLoc location of the location into the list of install targets that have the same specifier
    * mPrinC-TODO: a bit strange and not used at the moment?!
-    */
+   */
   const installTargetsMap: {[targetLoc: string]: InstallTarget[]} = {};
   const skipFailures = false;
   const autoDetectNamedExports = [
@@ -394,8 +394,8 @@ export async function install(
       if (targetType === 'JS') {
         installEntrypoints[targetName] = targetLoc;
         importMap.imports[installSpecifier] = `./${proxiedName}.js`;
-        // console.log("[install:targetType === 'JS'] targetLoc: '%s', targetName: '%s', importMap.imports[installSpecifier]: '%s'", 
-          // targetLoc, targetName, importMap.imports[installSpecifier]);
+        // console.log("[install:targetType === 'JS'] targetLoc: '%s', targetName: '%s', importMap.imports[installSpecifier]: '%s'",
+        // targetLoc, targetName, importMap.imports[installSpecifier]);
         // expand to all aliases if applies
         Object.entries(installAlias)
           .filter(([, value]) => value === installSpecifier)
@@ -413,7 +413,7 @@ export async function install(
       }
       logUpdate(formatInstallResults());
     } catch (err) {
-      console.error("[install:install:resolveWebDependency] err: ", err);
+      console.error('[install:install:resolveWebDependency] err: ', err);
       installResults.push([installSpecifier, 'FAIL']);
       logUpdate(formatInstallResults());
       if (skipFailures) {
@@ -449,15 +449,15 @@ export async function install(
   // https://rollupjs.org/guide/en/#inputoptions-object
   // https://rollupjs.org/guide/en/#big-list-of-options
   const inputOptions: InputOptions = {
-    /** The bundle's entry point(s) 
+    /** The bundle's entry point(s)
      * https://rollupjs.org/guide/en/#input
-    */
+     */
     input: installEntrypoints,
     /** lookup method for external modules
      * https://rollupjs.org/guide/en/#external
      */
     external: (id) => externalPackages.some((packageName) => isImportOfPackage(id, packageName)),
-    /** 
+    /**
      * treat external modules as if they have side-effects
      * https://rollupjs.org/guide/en/#treeshake */
     treeshake: {moduleSideEffects: 'no-external'},
@@ -470,7 +470,7 @@ export async function install(
           installTypes,
           log: (url) => logUpdate(colors.dim(url)),
         }),
-        // handle aliases
+      // handle aliases
       rollupPluginAlias({
         entries: Object.entries(installAlias)
           .filter(([, val]) => isPackageAliasEntry(val))
@@ -506,11 +506,12 @@ export async function install(
         // rollupPluginCommonjs that supports the "externalEsm" option.
         externalEsm: process.env.EXTERNAL_ESM_PACKAGES || [],
       } as RollupCommonJSOptions),
-      /** 
+      /**
        * mPrinC-TODO: I think it is to handle all packages that snowpack is aware and has them already in cache
-       * so it can provide them on demand as a single pre-packed file, rather than letting rollup to dwell into 
+       * so it can provide them on demand as a single pre-packed file, rather than letting rollup to dwell into
        * the original non-packed ones, not sure
-       * */ 
+       * */
+
       rollupPluginWrapInstallTargets(!!isTreeshake, autoDetectNamedExports, installTargets),
       rollupPluginDependencyStats((info) => (dependencyStats = info)),
       ...userDefinedRollup.plugins, // load user-defined plugins last
@@ -553,7 +554,7 @@ export async function install(
     // https://rollupjs.org/guide/en/#outputexports
     exports: 'named',
     // the location and format of files where will be stored
-    // the dependencies that are required from multiple modules 
+    // the dependencies that are required from multiple modules
     chunkFileNames: 'common/[name]-[hash].js',
   };
   if (Object.keys(installEntrypoints).length > 0) {
@@ -586,7 +587,7 @@ export async function install(
   }
 
   await writeLockfile(path.join(destLoc, IMPORT_MAP_FILE), importMap);
-  // carbon copy discovered assets 
+  // carbon copy discovered assets
   for (const [assetName, assetLoc] of Object.entries(assetEntrypoints)) {
     const assetDest = `${destLoc}/${sanitizePackageName(assetName)}`;
     mkdirp.sync(path.dirname(assetDest));
@@ -598,14 +599,14 @@ export async function install(
 
 /**
  * Gets install targets
- * It takes `install` param from snowpack config file, 
+ * It takes `install` param from snowpack config file,
  * `webDependencies` from `package.json`, initially provided files `scannedFiles` and
  * all application entry points (provided in the snowpack config file as the `mount` dictionary)
  * and scans for the packages that are imported across all discovered files
- * 
+ *
  * The core process is described in the @see{@link{scanImports()}} of the `../scan-imports.js`
  * @param config snowpack config
- * @param [scannedFiles] 
+ * @param [scannedFiles]
  * @returns all the targets that should be installed (real package dependencies, excluding local imports)
  * + it doesn't return internal imports, like: `./lib/dataset-entry.service`, `./select/select.js'`
  * + it does return package imports like`@colabo-flow/i-dataset`, etc)
@@ -615,7 +616,7 @@ export async function getInstallTargets(
   // mPrinC-NOTE: not provided with local `command` call
   // set of files that should be included for parsing
   scannedFiles?: SnowpackSourceFile[],
-):Promise<InstallTarget[]> {
+): Promise<InstallTarget[]> {
   const {knownEntrypoints, webDependencies} = config;
   const installTargets: InstallTarget[] = [];
   if (knownEntrypoints) {
@@ -657,7 +658,7 @@ export async function command(commandOptions: CommandOptions) {
     console.log(printStats(finalResult.stats));
   }
   if (!finalResult.success || finalResult.hasError) {
-    console.error("Problem with installing dependencies, quitting.");
+    console.error('Problem with installing dependencies, quitting.');
     process.exit(1);
   }
 }

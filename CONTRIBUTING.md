@@ -8,7 +8,16 @@ Our [issue tracker](https://github.com/pikapkg/snowpack/issues) is always organi
 ```bash
 # Local Setup
 git clone ${REPO}
+cd ${REPO}
 npm install
+
+# mPrinC-TODO Is there any mechanism that is not working that installs packages/snowpack/ automatically?
+# it seems there is not, as even build is simple `"build": "cd packages/snowpack && yarn build",`
+# which is also unnecessary mix of npm and yarn in the same project, making confusion with lock files
+cd packages/snowpack/
+npm install
+# mPrinC-TODO we can even stay here and do yarn build :)
+cd ../..
 ```
 
 ```bash
