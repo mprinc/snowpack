@@ -341,6 +341,8 @@ function loadPlugins(
     plugins.push(plugin);
   });
 
+  // if any required extension is not covered with loaded plugins
+  // provide esbuild plugin as well as default
   const needsDefaultPlugin = new Set(['.mjs', '.jsx', '.ts', '.tsx']);
   plugins
     .filter(({resolve}) => !!resolve)
@@ -529,6 +531,7 @@ function normalizeConfig(config: SnowpackConfig): SnowpackConfig {
   return config;
 }
 
+/** Reports the error and stops snowpack */
 function handleConfigError(msg: string) {
   console.error(`[error]: ${msg}`);
   process.exit(1);
@@ -691,6 +694,18 @@ function validatePlugin(plugin: SnowpackPlugin) {
   }
 }
 
+/**
+ * Validates plugin load result
+ * It reacts only if the result is returned by plugin
+ * but not conforming with what the plugin promised through its `resolve.output` claims
+ * 
+ * **NOTE**: This function provides side effects in the regard where it is called from
+ * 
+ * It will stop snowpack execution on error discovered
+ * 
+ * @param plugin the plugin that provided the result
+ * @param result the result to be validated
+ */
 export function validatePluginLoadResult(
   plugin: SnowpackPlugin,
   result: PluginLoadResult | void | undefined | null,

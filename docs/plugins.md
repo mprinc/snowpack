@@ -29,7 +29,7 @@ Snowpack uses an <span class='definition'>internal **Build Pipeline**</span> to 
 Snowpack runs each file through the build pipeline in <span class='important'>two separate steps</span>:
 
 1. **Load:** Snowpack finds <span class='important'>the first plugin</span> that claims to `resolve` the given file. It then calls that plugin's `load()` method to load the file into your application. This is where compiled languages (TypeScript, Sass, JSX, etc.) are loaded and compiled to something that can run on the web (JS, CSS, etc).
-2. **Transform:** Once loaded, every file passes through the build pipeline again to run through matching `transform()` methods. Plugins can transform a file to modify or augment its contents before finishing the file build.
+2. **Transform:** Once loaded, every file passes through the build pipeline again to run through matching `transform()` methods of all plugins that offer the method. Plugins can transform a file to modify or augment its contents before finishing the file build.
 
 ### Dev Tooling Plugins
 
@@ -75,6 +75,14 @@ Snowpack will automatically call this function to load your plugin. That functio
 
   1. the [Snowpack configuration object](/#all-config-options) (`snowpackConfig`)
   1. (optional) user-provided config options (`pluginOptions`)
+
+### Develop and test
+
+To develop and test plugin, the strategy is the same as with other npm packages
+
+1. use `npm link` to make global the plugin with the future npm name `<plugin-name>`, and 
+2. use `npm link <plugin-name>` in the project you want to test it and
+3. in the project's `snowpack.config.json` under the plugins name provide the same `<plugin-name>` and optional plugin options
 
 
 ### Transform a File
@@ -190,7 +198,8 @@ This is an (obviously) simplified version of the `@snowpack/plugin-webpack` plug
 - Snowpack will always keep the original file name (`App`) and only ever change the extension in the build. 
 - Extensions in Snowpack always have a leading `.` character (e.g. `.js`, `.ts`). This is to match Node’s `path.extname()` behavior, as well as make sure we’re not matching extension substrings (e.g. if we matched `js` at the end of a file, we also don’t want to match `.mjs` files by accident; we want to be explicit there).
 - The `resolve.input` and `resolve.output` file extension arrays are vital to how Snowpack understands your build pipeline, and are always required for `load()` to run correctly.
-- If `load()` or `transform()` <span class='important'>don't return anything</span>, the file isn’t transformed. 
+- If `load()` <span class='important'>doesn't return anything</span>, the file isn’t loaded and the `load()` of the next suitable plugin is called.
+- If `transform()` <span class='important'>doesn't return anything</span>, the file isn’t transformed. 
 - If you want to build a plugin that <span class='important'>only runs some code on initialization</span> (such as `@snowpack/plugin-dotenv`), put your side-effect code inside the function that returns your plugin. But be sure to still return a plugin object. A simple `{ name }` object will do.
 
 ## Plugin API
@@ -204,7 +213,7 @@ Check out our ["SnowpackPlugin" TypeScript definition](https://unpkg.com/browse/
 knownEntrypoints: ["svelte/internal"]
 ```
 
-An list of any npm dependencies that are added as a part of `load()` or `transform()` that Snowpack will need to know about. Snowpack analyzes most dependency imports automatically when it scans the source code of a project, but some imports are added as a part of a `load()` or `transform()` step, which means that Snowpack would never see them. If your plugin does this, add them here.
+An list of any npm dependencies that are added as a part of `load()` or `transform()` that Snowpack will need to know about. Snowpack analyzes most dependency imports automatically when it scans the source code of a project, but some imports are added as a part of a `load()` or `transform()` step, which means that <span class='comment' data='This is not super great, as Chromium makes a very unclear report where is the error: `Uncaught TypeError: Failed to resolve module specifier "axios-observable". Relative references must start with either "/", "./", or "../"` with no reference to the file importing the missing module'>Snowpack would never see them</span>. If your plugin does this, add them here.
 
 ### resolve
 

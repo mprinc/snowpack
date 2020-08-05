@@ -76,6 +76,7 @@ async function runPipelineLoadStep(
       },
     });
 
+    // provides side effects
     validatePluginLoadResult(step, result);
 
     if (typeof result === 'string') {
