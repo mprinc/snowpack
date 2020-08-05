@@ -19,7 +19,7 @@ function getLoader(filePath: string): 'js' | 'jsx' | 'ts' | 'tsx' {
   return ext.substr(1) as 'jsx' | 'ts' | 'tsx';
 }
 
-export function esbuildPlugin(_: SnowpackConfig, {input}: {input: string[]}): SnowpackPlugin {
+export function esbuildPlugin(config: SnowpackConfig, {input}: {input: string[]}): SnowpackPlugin {
   return {
     name: '@snowpack/plugin-esbuild',
     resolve: {
@@ -41,17 +41,24 @@ export function esbuildPlugin(_: SnowpackConfig, {input}: {input: string[]}): Sn
       // console.log("[@snowpack/plugin-esbuild::load] patched: contents: %s", contents);
 
       const isPreact = checkIsPreact(filePath, contents);
-      const {js, warnings} = await esbuildService!.transform(contents, {
+      const {js, jsSourceMap, warnings} = await esbuildService!.transform(contents, {
         loader: getLoader(filePath),
         jsxFactory: isPreact ? 'h' : undefined,
         jsxFragment: isPreact ? 'Fragment' : undefined,
+        sourcefile: filePath,
+        sourcemap: config.buildOptions.sourceMaps,
       });
       for (const warning of warnings) {
         console.error(colors.bold('! ') + filePath);
         console.error('  ' + warning.text);
       }
       // console.log("[@snowpack/plugin-esbuild::load] transformed contents ['JS']: ", contents);
-      return {'.js': js || ''};
+      return {
+        '.js': {
+          code: js || '',
+          map: jsSourceMap,
+        },
+      };
     },
   };
 }

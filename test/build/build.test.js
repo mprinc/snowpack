@@ -1,4 +1,5 @@
 const path = require('path');
+const execa = require('execa');
 const {readdirSync, readFileSync, statSync, existsSync} = require('fs');
 const dircompare = require('dir-compare');
 
@@ -28,8 +29,8 @@ describe('snowpack build', () => {
         cwd = path.join(cwd, 'packages', 'snowpack');
       }
 
-      // By this point, `npm run setupTests` should have been run, which means these directories
-      // we’re comparing should be recently-built
+      // build test
+      execa.sync('yarn', ['testbuild'], {cwd});
 
       const expected = path.join(cwd, 'expected-build');
       const actual = path.join(cwd, 'build');
@@ -44,11 +45,7 @@ describe('snowpack build', () => {
       // If any diffs are detected, we'll assert the difference so that we get nice output.
       for (const entry of res.diffSet) {
         // NOTE: We only compare files so that we give the test runner a more detailed diff.
-        if (entry.type1 !== 'file') {
-          return;
-        }
-        // NOTE: common chunks are hashed, non-trivial to compare
-        if (entry.path1.endsWith('common') && entry.path2.endsWith('common')) {
+        if (entry.type1 === 'directory' && entry.type2 === 'directory') {
           return;
         }
 
@@ -60,6 +57,11 @@ describe('snowpack build', () => {
           throw new Error(
             `File not found in snapshot: ${entry.path2.replace(actual, '')}/${entry.name2}`,
           );
+
+        // NOTE: common chunks are hashed, non-trivial to compare
+        if (entry.path1.endsWith('common') && entry.path2.endsWith('common')) {
+          return;
+        }
 
         expect(format(readFileSync(path.join(entry.path1, entry.name1), {encoding: 'utf8'}))).toBe(
           format(readFileSync(path.join(entry.path2, entry.name2), {encoding: 'utf8'})),

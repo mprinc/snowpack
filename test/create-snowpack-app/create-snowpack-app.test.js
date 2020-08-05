@@ -46,45 +46,40 @@ describe('create-snowpack-app', () => {
     it(template, async () => {
       const cwd = path.join(TEMPLATES_DIR, template);
 
-      // 1. build
-
-      // pre-build: set config to minify output
-      const snowpackConfig = path.join(cwd, 'snowpack.config.json');
-      const originalConfig = fs.readFileSync(snowpackConfig, 'utf8');
-      const config = JSON.parse(originalConfig);
-      config.buildOptions = {...(config.buildOptions || {}), minify: false};
-      fs.writeFileSync(snowpackConfig, JSON.stringify(config), 'utf8');
-
       // build
-      await execa('yarn', ['build'], {cwd, env: {NODE_ENV: 'production'}});
-
-      // post-build: restore original config
-      fs.writeFileSync(snowpackConfig, originalConfig, 'utf8');
+      await execa('yarn', ['build', '--clean', '--no-minify'], {
+        cwd,
+        env: {NODE_ENV: 'production'},
+      });
 
       const expected = path.join(__dirname, 'snapshots', template);
       const actual = path.join(cwd, 'build');
 
       // 2. compare
       const res = dircompare.compareSync(expected, actual);
+
       res.diffSet.forEach((entry) => {
         // NOTE: We only compare files so that we give the test runner a more detailed diff.
-        if (entry.type1 !== 'file') {
+        if (entry.type1 === 'directory' && entry.type2 === 'directory') {
           return;
         }
+
+        if (!entry.path2 || !entry.name2)
+          throw new Error(
+            `File failed to generate: ${entry.path1.replace(expected, '')}/${entry.name1}`,
+          );
+        if (!entry.path1 || !entry.name1)
+          throw new Error(
+            `File not found in snapshot: ${entry.path2.replace(actual, '')}/${entry.name2}`,
+          );
+
+        // don’t compare source .map contents, so long as they exist
+        if (path.extname(entry.name1) === '.map') return;
 
         // NOTE: common chunks are hashed, non-trivial to compare
         if (entry.path1.endsWith('common') && entry.path2.endsWith('common')) {
           return;
         }
-
-        if (!entry.path2)
-          throw new Error(
-            `File failed to generate: ${entry.path1.replace(expected, '')}/${entry.name1}`,
-          );
-        if (!entry.path1)
-          throw new Error(
-            `File not found in snapshot: ${entry.path2.replace(actual, '')}/${entry.name2}`,
-          );
 
         // compare contents
         const f1 = fs.readFileSync(path.join(entry.path1, entry.name1), 'utf8');
